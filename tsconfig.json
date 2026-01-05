@@ -1,0 +1,29 @@
+{
+  "extends": [
+    "@tsconfig/node24/tsconfig.json",
+    "@vue/tsconfig/tsconfig.dom.json"
+  ],
+
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "strict": true,
+    "importHelpers": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    "types": ["node"],
+    "baseUrl": ".",
+    "lib": ["esnext", "dom", "dom.iterable"],
+  },
+  "include": ["src/**/*", "vite.config.ts", "eslint.config.ts",
+    "src/app.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
