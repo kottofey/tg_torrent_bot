@@ -15,12 +15,14 @@
     "chalk": "^5.6.2",
     "dotenv": "^17.2.3",
     "grammy": "^1.39.2",
+    "node-cmd": "^5.0.0",
     "nodemon": "^3.1.11",
     "tsc": "^2.0.4",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
+    "@types/node-cmd": "^5.0.0",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",

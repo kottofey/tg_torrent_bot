@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import { Bot, Context } from 'grammy';
 import chalk from 'chalk';
 
+import cmd from 'node-cmd';
+
 import { type FileFlavor, hydrateFiles } from '@grammyjs/files';
 
 import * as process from 'node:process';
@@ -13,11 +15,11 @@ import * as path from 'node:path';
 
 import * as constants from 'node:constants';
 
-import { checkId } from './cmds';
+import { checkId, convertFileSize } from './cmds';
 
 dotenv.config({ path: 'src/.env', quiet: true });
 
-const { TG_BOT_TOKEN, SAVE_DIR, ADMIN_TG_ID } = process.env;
+const { TG_BOT_TOKEN, SAVE_DIR, ADMIN_TG_ID, QBT_LOGIN, QBT_PASSWORD, QBT_URL } = process.env;
 
 try {
   if (!TG_BOT_TOKEN) {
@@ -45,7 +47,7 @@ try {
 
     // Проверяем является ли отправленный документ торрент файлом
     if (ctx.message.document.mime_type !== 'application/x-bittorrent') {
-      await ctx.api.sendMessage(senderId, `Это не торрент файл`);
+      await ctx.api.sendMessage(senderId, `Это не торренд файл`);
       return;
     }
 
@@ -58,8 +60,29 @@ try {
 
     await ctx.api.sendMessage(
       senderId,
-      `Готово.\n\nФайл: ${file_name}\n\nРазмер: ${file.file_size ? (file.file_size / 1024).toFixed(2) : '?'} КиБ`,
+      `Готово.\n\nСохранено: ${SAVE_DIR}/${file_name}\n\nРазмер: ${file.file_size ? (file.file_size / 1024).toFixed(2) : '?'} КиБ`,
     );
+  });
+
+  bot.command('torrents_list', async (ctx) => {
+    const senderId = ctx.message?.from.id;
+    if (senderId) {
+      cmd.run(
+        `qbt torrent list --format json --url ${QBT_URL} --username ${QBT_LOGIN} --password ${QBT_PASSWORD}`,
+        async (error, data, stderr) => {
+          const json = JSON.parse(data).map((torrent) => {
+            return {
+              name: torrent.name,
+              progress: (torrent.progress * 100).toFixed(2).toString() + '%',
+              size: convertFileSize(torrent.total_size),
+            };
+          });
+          await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
+            parse_mode: 'MarkdownV2',
+          });
+        },
+      );
+    }
   });
 
   await bot.start();
