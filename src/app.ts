@@ -6,14 +6,15 @@ import cmd from 'node-cmd';
 
 import { type FileFlavor, hydrateFiles } from '@grammyjs/files';
 
-import * as process from 'node:process';
+import type { ITorrent } from 'src/types';
+
 import { access } from 'node:fs/promises';
 
 type MyContext = FileFlavor<Context>;
 
-import * as path from 'node:path';
-
 import * as constants from 'node:constants';
+
+import process from 'node:process';
 
 import { checkId, convertFileSize } from './cmds';
 
@@ -27,6 +28,19 @@ try {
   }
   const bot = new Bot<MyContext>(TG_BOT_TOKEN);
   bot.api.config.use(hydrateFiles(bot.token));
+
+  // -----------------------------------------------------------------------------
+  // Обработка сигналов завершения
+  // -----------------------------------------------------------------------------
+
+  process.once('SIGINT', async () => {
+    console.log('SIGINT received');
+    await bot.stop();
+  });
+  process.once('SIGTERM', async () => {
+    console.log('SIGTERM received');
+    await bot.stop();
+  });
 
   // проверяем существование папки для скачивания
   try {
@@ -69,12 +83,13 @@ try {
     if (senderId) {
       cmd.run(
         `qbt torrent list --format json --url ${QBT_URL} --username ${QBT_LOGIN} --password ${QBT_PASSWORD}`,
-        async (error, data, stderr) => {
-          const json = JSON.parse(data).map((torrent) => {
+        async (_error, data) => {
+          const json = JSON.parse(data).map((torrent: ITorrent) => {
             return {
               name: torrent.name,
               progress: (torrent.progress * 100).toFixed(2).toString() + '%',
               size: convertFileSize(torrent.total_size),
+              hash: torrent.hash,
             };
           });
           await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
@@ -84,6 +99,29 @@ try {
       );
     }
   });
+
+  bot.command('ping', async (ctx) => {
+    const senderId = ctx.message?.from.id;
+
+    if (senderId) {
+      await ctx.api.sendMessage(
+        senderId,
+        `
+\`\`\`Pong!
+
+Node version: ${process.version}\`\`\`
+`,
+        {
+          parse_mode: 'MarkdownV2',
+        },
+      );
+    }
+  });
+
+  await bot.api.setMyCommands([
+    { command: 'torrents_list', description: 'Список торрентов на закачке' },
+    { command: 'ping', description: 'Понг! И некая служебная информация' },
+  ]);
 
   await bot.start();
 } catch (err: unknown) {
