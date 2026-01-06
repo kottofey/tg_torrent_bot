@@ -2,11 +2,7 @@ import dotenv from 'dotenv';
 import { Bot, Context } from 'grammy';
 import chalk from 'chalk';
 
-import cmd from 'node-cmd';
-
 import { type FileFlavor, hydrateFiles } from '@grammyjs/files';
-
-import type { ITorrent } from 'src/types';
 
 import { access } from 'node:fs/promises';
 
@@ -14,13 +10,11 @@ type MyContext = FileFlavor<Context>;
 
 import * as constants from 'node:constants';
 
-import process from 'node:process';
-
-import { checkId, convertFileSize } from './cmds';
+import { checkId, initBot } from './helpers';
 
 dotenv.config({ path: 'src/.env', quiet: true });
 
-const { TG_BOT_TOKEN, SAVE_DIR, ADMIN_TG_ID, QBT_LOGIN, QBT_PASSWORD, QBT_URL } = process.env;
+const { TG_BOT_TOKEN, SAVE_DIR, ADMIN_TG_ID } = process.env;
 
 try {
   if (!TG_BOT_TOKEN) {
@@ -33,13 +27,13 @@ try {
   // Обработка сигналов завершения
   // -----------------------------------------------------------------------------
 
-  process.once('SIGINT', async () => {
+  process.once('SIGINT', () => {
     console.log('SIGINT received');
-    await bot.stop();
+    void bot.stop();
   });
-  process.once('SIGTERM', async () => {
+  process.once('SIGTERM', () => {
     console.log('SIGTERM received');
-    await bot.stop();
+    void bot.stop();
   });
 
   // проверяем существование папки для скачивания
@@ -50,110 +44,7 @@ try {
     console.error(chalk.red('Папки для скачивания не существует, проверьте файл .env\n\n'), err);
   }
 
-  bot.on('message:document', async (ctx) => {
-    const senderId = ctx.message.from.id;
-
-    // Проверяем есть ли отправитель в белом списке
-    if (!checkId(senderId)) {
-      await ctx.api.sendMessage(senderId, `Ваш ID (${senderId}) не в белом списке`);
-      return;
-    }
-
-    // Проверяем является ли отправленный документ торрент файлом
-    if (ctx.message.document.mime_type !== 'application/x-bittorrent') {
-      await ctx.api.sendMessage(senderId, `Это не торренд файл`);
-      return;
-    }
-
-    // Если всё ОК - качаем файл и копируем в соответствующую папку
-    const file_id = ctx.message.document.file_id;
-    const file_name = ctx.message.document.file_name;
-    const file = await ctx.api.getFile(file_id);
-
-    await file.download(`${SAVE_DIR}/${file_name}`);
-
-    await ctx.api.sendMessage(
-      senderId,
-      `Готово.\n\nСохранено: ${SAVE_DIR}/${file_name}\n\nРазмер: ${file.file_size ? (file.file_size / 1024).toFixed(2) : '?'} КиБ`,
-    );
-  });
-
-  bot.command('torrents_list_all', async (ctx) => {
-    const senderId = ctx.message?.from.id;
-    if (senderId) {
-      cmd.run(
-        `qbt torrent list --format json --url ${QBT_URL} --username ${QBT_LOGIN} --password ${QBT_PASSWORD}`,
-        async (_error, data) => {
-          const json = JSON.parse(data).map((torrent: ITorrent) => {
-            return {
-              name: torrent.name,
-              progress: (torrent.progress * 100).toFixed(2).toString() + '%',
-              size: convertFileSize(torrent.total_size),
-              hash: torrent.hash,
-            };
-          });
-
-          if (json.length === 0) {
-            json.push('Список пуст');
-          }
-          await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
-            parse_mode: 'MarkdownV2',
-          });
-        },
-      );
-    }
-  });
-
-  bot.command('torrents_list_active', async (ctx) => {
-    const senderId = ctx.message?.from.id;
-    if (senderId) {
-      cmd.run(
-        `qbt torrent list --filter downloading --format json --url ${QBT_URL} --username ${QBT_LOGIN} --password ${QBT_PASSWORD}`,
-        async (_error, data) => {
-          const json = JSON.parse(data).map((torrent: ITorrent) => {
-            return {
-              name: torrent.name,
-              progress: (torrent.progress * 100).toFixed(2).toString() + '%',
-              size: convertFileSize(torrent.total_size),
-              hash: torrent.hash,
-            };
-          });
-
-          if (json.length === 0) {
-            json.push('Список пуст');
-          }
-          await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
-            parse_mode: 'MarkdownV2',
-          });
-        },
-      );
-    }
-  });
-
-  bot.command('ping', async (ctx) => {
-    const senderId = ctx.message?.from.id;
-
-    if (senderId) {
-      await ctx.api.sendMessage(
-        senderId,
-        `
-\`\`\`Pong!
-
-Node version: ${process.version}\`\`\`
-`,
-        {
-          parse_mode: 'MarkdownV2',
-        },
-      );
-    }
-  });
-
-  await bot.api.setMyCommands([
-    { command: 'torrents_list_all', description: 'Список торрентов полный' },
-    { command: 'torrents_list_active', description: 'Список торрентов на закачке' },
-    { command: 'ping', description: 'Понг! И некая служебная информация' },
-    { command: 'start', description: 'Старт бота' },
-  ]);
+  await initBot(bot);
 
   await bot.start();
 } catch (err: unknown) {

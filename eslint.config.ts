@@ -9,6 +9,12 @@ export default defineConfig(
     name: 'app/files-to-lint',
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,vue,tsx,jsx}'],
 
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+
     settings: {
       'import-x/resolver-next': createTypeScriptImportResolver({
         alwaysTryTypes: true,
@@ -34,5 +40,5 @@ export default defineConfig(
     },
   },
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
-  tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
 );
