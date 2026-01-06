@@ -78,7 +78,7 @@ try {
     );
   });
 
-  bot.command('torrents_list', async (ctx) => {
+  bot.command('torrents_list_all', async (ctx) => {
     const senderId = ctx.message?.from.id;
     if (senderId) {
       cmd.run(
@@ -92,6 +92,36 @@ try {
               hash: torrent.hash,
             };
           });
+
+          if (json.length === 0) {
+            json.push('Список пуст');
+          }
+          await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
+            parse_mode: 'MarkdownV2',
+          });
+        },
+      );
+    }
+  });
+
+  bot.command('torrents_list_active', async (ctx) => {
+    const senderId = ctx.message?.from.id;
+    if (senderId) {
+      cmd.run(
+        `qbt torrent list --filter downloading --format json --url ${QBT_URL} --username ${QBT_LOGIN} --password ${QBT_PASSWORD}`,
+        async (_error, data) => {
+          const json = JSON.parse(data).map((torrent: ITorrent) => {
+            return {
+              name: torrent.name,
+              progress: (torrent.progress * 100).toFixed(2).toString() + '%',
+              size: convertFileSize(torrent.total_size),
+              hash: torrent.hash,
+            };
+          });
+
+          if (json.length === 0) {
+            json.push('Список пуст');
+          }
           await ctx.api.sendMessage(senderId, `\`\`\`${JSON.stringify(json, null, 2)}\`\`\``, {
             parse_mode: 'MarkdownV2',
           });
@@ -119,8 +149,10 @@ Node version: ${process.version}\`\`\`
   });
 
   await bot.api.setMyCommands([
-    { command: 'torrents_list', description: 'Список торрентов на закачке' },
+    { command: 'torrents_list_all', description: 'Список торрентов полный' },
+    { command: 'torrents_list_active', description: 'Список торрентов на закачке' },
     { command: 'ping', description: 'Понг! И некая служебная информация' },
+    { command: 'start', description: 'Старт бота' },
   ]);
 
   await bot.start();
