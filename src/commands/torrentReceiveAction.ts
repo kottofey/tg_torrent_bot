@@ -9,6 +9,7 @@ import { checkId, convertFileSize } from '../helpers';
 const { SAVE_DIR } = process.env;
 
 export default function torrentReceiveAction(bot: Bot<MyContext>) {
+  console.log('Received toreent file');
   bot.on('message:document', async (ctx) => {
     const senderId = ctx.message.from.id;
 
